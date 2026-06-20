@@ -1,0 +1,7 @@
+body { margin: 0; font-family: Arial, sans-serif; overflow: hidden; background: #000; color: #fff; }
+#container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#info {
+  position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; max-width: 300px; pointer-events: auto;
+}
+#details { margin-top: 10px; font-size: 14px; line-height: 1.4; }
+h1 { margin: 0 0 10px 0; font-size: 24px; }
