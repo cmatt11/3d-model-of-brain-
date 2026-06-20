@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anatomically Accurate 3D Human Brain</title>
+    <link href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #080810;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+        }
+        canvas { display: block; }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .title-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        .title-bar h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f0abfc, #a78bfa, #67e8f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .title-bar p {
+            color: #6b7280;
+            font-size: 0.75rem;
+            margin-top: 3px;
+        }
+
+        .info-panel {
+            position: absolute;
+            right: 20px;
+            top: 80px;
+            width: 300px;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+            pointer-events: all;
+            background: rgba(12, 12, 24, 0.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .info-panel::-webkit-scrollbar { width: 4px; }
+        .info-panel::-webkit-scrollbar-track { background: transparent; }
+        .info-panel::-webkit-scrollbar-thumb { background: rgba(167, 139, 250, 0.3); border-radius: 2px; }
+
+        .info-panel h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .info-panel h2 .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .info-panel .region-type {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+        .info-panel .description {
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: #d1d5db;
+            margin-bottom: 14px;
+        }
+        .info-panel .functions-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .info-panel .function-list {
+            list-style: none;
+            padding: 0;
+        }
+        .info-panel .function-list li {
+            font-size: 0.78rem;
+            color: #c4b5fd;
+            padding: 5px 0;
+            padding-left: 16px;
+            position: relative;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .info-panel .function-list li:last-child { border-bottom: none; }
+        .info-panel .function-list li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #a78bfa;
+        }
+
+        .controls-panel {
+            position: absolute;
+            left: 20px;
+            top: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: all;
+        }
+        .ctrl-btn {
+            padding: 10px 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: rgba(15, 15, 30, 0.85);
+            backdrop-filter: blur(8px);
+            color: #9ca3af;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .ctrl-btn:hover {
+            background: rgba(30, 30, 55, 0.9);
+            color: #fff;
+            border-color: rgba(167, 139, 250, 0.3);
+        }
+        .ctrl-btn.active {
+            background: rgba(167, 139, 250, 0.12);
+            border-color: rgba(167, 139, 250, 0.4);
+            color: #c4b5fd;
+        }
+
+        .parts-list {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            pointer-events: all;
+            max-width: 500px;
+        }
+        .part-tag {
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            opacity: 0.7;
+        }
+        .part-tag:hover, .part-tag.active {
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+
+        .view-modes {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 6px;
+            pointer-events: all;
+        }
+        .view-btn {
+            padding: 8px 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            background: rgba(15, 15, 30, 0.85);
+            backdrop-filter: blur(8px);
+            color: #9ca3af;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .view-btn:hover { border-color: rgba(167, 139, 250, 0.3); color: #fff; }
+        .view-btn.active {
+            background: rgba(167, 139, 250, 0.12);
+            border-color: rgba(167, 139, 250, 0.4);
+            color: #c4b5fd;
+        }
+
+        .tooltip-3d {
+            position: absolute;
+            padding: 4px 10px;
+            background: rgba(10, 10, 20, 0.9);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 6px;
+            font-size: 0.7rem;
+            color: #e9d5ff;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+            z-index: 100;
+        }
+        .tooltip-3d.visible { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="ui-overlay">
+        <div class="title-bar">
+            <h1>Human Brain — Complete Anatomy</h1>
+            <p>Click any structure to learn about its function · Drag to rotate · Scroll to zoom</p>
+        </div>
+
+        <div class="info-panel" id="infoPanel">
+            <h2><span class="color-dot" id="infoDot" style="background:#a78bfa"></span><span id="infoTitle">Select a Brain Region</span></h2>
+            <div class="region-type" id="infoType">Interactive 3D Anatomy Model</div>
+            <div class="description" id="infoDesc">Click on any part of the brain or use the tags below to explore the major structures and their functions. Each region plays a vital role in human cognition, movement, and bodily regulation.</div>
+            <div class="functions-title" id="funcTitle">Key Functions</div>
+            <ul class="function-list" id="funcList">
+                <li>Motor control & planning</li>
+                <li>Sensory processing</li>
+                <li>Memory & learning</li>
+                <li>Emotional regulation</li>
+                <li>Language & communication</li>
+                <li>Autonomic functions</li>
+            </ul>
+        </div>
+
+        <div class="controls-panel">
+            <button class="ctrl-btn active" id="btn-rotate">↻ Auto Rotate</button>
+            <button class="ctrl-btn" id="btn-explode">✦ Explode View</button>
+            <button class="ctrl-btn" id="btn-xray">◎ X-Ray Mode</button>
+            <button class="ctrl-btn" id="btn-labels">⊞ Show Labels</button>
+            <button class="ctrl-btn" id="btn-wireframe">◇ Wireframe</button>
+            <button class="ctrl-btn" id="btn-section">⊘ Cross Section</button>
+        </div>
+
+        <div class="parts-list" id="partsList"></div>
+
+        <div class="view-modes">
+            <button class="view-btn active" data-view="lateral">Lateral</button>
+            <button class="view-btn" data-view="medial">Medial</button>
+            <button class="view-btn" data-view="superior">Superior</button>
+            <button class="view-btn" data-view="inferior">Inferior</button>
+            <button class="view-btn" data-view="posterior">Posterior</button>
+        </div>
+    </div>
+
+    <div class="tooltip-3d" id="tooltip3d"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+    (function() {
+        // Brain data with all parts and functions
+        const brainData = {
+            frontal_lobe: {
+                name: "Frontal Lobe",
+                type: "Cerebral Cortex Lobe",
+                color: "#f472b6",
+                description: "The largest lobe of the brain, located at the front of each cerebral hemisphere. It is separated from the parietal lobe by the central sulcus and from the temporal lobe by the lateral sulcus. The frontal lobe is the seat of higher cognitive functions and is what makes humans uniquely capable of complex thought.",
+                functions: [
+                    "Executive function & decision making",
+                    "Voluntary motor control (primary motor cortex)",
+                    "Speech production (Broca's area)",
+                    "Personality & behavior regulation",
+                    "Working memory & attention",
+                    "Problem solving & planning",
+                    "Emotional expression & empathy",
+                    "Judgment & impulse control",
+                    "Social behavior & moral reasoning",
+                    "Motivation & reward processing"
+                ]
+            },
+            parietal_lobe: {
+                name: "Parietal Lobe",
+                type: "Cerebral Cortex Lobe",
+                color: "#a78bfa",
+                description: "Located behind the frontal lobe and above the temporal lobe, separated by the central sulcus (anteriorly) and the parieto-occipital sulcus (posteriorly). It integrates sensory information from various modalities and is crucial for spatial awareness and navigation.",
+                functions: [
+                    "Somatosensory processing (touch, pressure, pain, temperature)",
+                    "Spatial awareness & navigation",
+                    "Body position sense (proprioception)",
+                    "Mathematical computation",
+                    "Language processing (reading, writing)",
+                    "Visuomotor coordination",
+                    "Attention & perception",
+                    "Multi-sensory integration",
+                    "Object manipulation understanding",
+                    "Self-awareness & body image"
+                ]
+            },
+            temporal_lobe: {
+                name: "Temporal Lobe",
+                type: "Cerebral Cortex Lobe",
+                color: "#60a5fa",
+                description: "Located beneath the lateral sulcus (Sylvian fissure) on both hemispheres. It houses the primary auditory cortex and is essential for processing auditory information, language comprehension, and memory formation. Contains important structures like the hippocampus and amygdala.",
+                functions: [
+                    "Auditory processing (primary auditory cortex)",
+                    "Language comprehension (Wernicke's area)",
+                    "Memory formation & retrieval",
+                    "Emotional processing (amygdala)",
+                    "Face recognition (fusiform face area)",
+                    "Music perception & processing",
+                    "Visual information processing (ventral stream)",
+                    "Semantic memory & knowledge",
+                    "Speech comprehension",
+                    "Emotional memory & fear conditioning"
+                ]
+            },
+            occipital_lobe: {
+                name: "Occipital Lobe",
+                type: "Cerebral Cortex Lobe",
+                color: "#34d399",
+                description: "The smallest of the four lobes, located at the posterior (back) of the brain. It contains the primary visual cortex (V1) and numerous visual association areas. It is almost entirely dedicated to visual processing and interpretation.",
+                functions: [
+                    "Primary visual processing (V1)",
+                    "Color perception & recognition",
+                    "Depth perception & stereopsis",
+                    "Motion detection & tracking",
+                    "Pattern & object recognition",
+                    "Visual memory formation",
+                    "Spatial frequency processing",
+                    "Visual attention & awareness",
+                    "Reading & visual word recognition",
+                    "Visual-spatial processing"
+                ]
+            },
+            cerebellum: {
+                name: "Cerebellum",
+                type: "Hindbrain Structure",
+                color: "#fbbf24",
+                description: "Located at the back of the brain below the occipital lobes, the cerebellum ('little brain') contains more neurons than the rest of the brain combined. Despite being only 10% of brain volume, it contains over 50% of all neurons. It is essential for motor learning and coordination.",
+                functions: [
+                    "Motor coordination & precision",
+                    "Balance & posture maintenance",
+                    "Motor learning & adaptation",
+                    "Timing & rhythm processing",
+                    "Cognitive function support",
+                    "Eye movement coordination",
+                    "Speech fluency & articulation",
+                    "Procedural memory (skills/habits)",
+                    "Emotional regulation support",
+                    "Sensory-motor integration"
+                ]
+            },
+            brain_stem: {
+                name: "Brain Stem",
+                type: "Central Nervous System",
+                color: "#f87171",
+                description: "The brain stem connects the cerebrum to the spinal cord and consists of three parts: the midbrain, pons, and medulla oblongata. It controls many automatic vital functions necessary for survival and serves as a relay station between the brain and body.",
+                functions: [
+                    "Heart rate regulation",
+                    "Blood pressure control",
+                    "Breathing rhythm (respiratory center)",
+                    "Sleep-wake cycle regulation",
+                    "Consciousness & alertness",
+                    "Cranial nerve nuclei (3-12)",
+                    "Reflex centers (coughing, sneezing, swallowing)",
+                    "Relay of motor/sensory signals",
+                    "Reticular activating system (arousal)",
+                    "Vomiting & digestion reflexes"
+                ]
+            },
+            thalamus: {
+                name: "Thalamus",
+                type: "Diencephalon",
+                color: "#fb923c",
+                description: "A paired structure forming most of the diencephalon, located deep in the center of the brain above the brain stem. It acts as the brain's central relay station, processing and transmitting nearly all sensory and motor information to the cerebral cortex.",
+                functions: [
+                    "Sensory relay station (all senses except smell)",
+                    "Motor signal relay to cortex",
+                    "Consciousness & alertness regulation",
+                    "Sleep cycle regulation (spindle waves)",
+                    "Attention modulation",
+                    "Memory processing support",
+                    "Emotion integration",
+                    "Pain perception modulation",
+                    "Cortical activation & arousal",
+                    "Integration of cognitive functions"
+                ]
+            },
+            hypothalamus: {
+                name: "Hypothalamus",
+                type: "Diencephalon",
+                color: "#e879f9",
+                description: "A small but critical structure located below the thalamus. Despite its small size (about the size of an almond), it controls numerous essential body functions through its regulation of the endocrine system via the pituitary gland and its connections to the autonomic nervous system.",
+                functions: [
+                    "Body temperature regulation (thermoregulation)",
+                    "Hunger & satiety control",
+                    "Thirst & fluid balance",
+                    "Circadian rhythm (sleep-wake cycle)",
+                    "Hormone production & release",
+                    "Autonomic nervous system control",
+                    "Emotional responses (fight or flight)",
+                    "Sexual behavior & reproduction",
+                    "Stress response (HPA axis)",
+                    "Blood pressure regulation"
+                ]
+            },
+            hippocampus: {
+                name: "Hippocampus",
+                type: "Limbic System",
+                color: "#2dd4bf",
+                description: "A seahorse-shaped structure located in the medial temporal lobe. It is one of the first regions damaged in Alzheimer's disease and is absolutely critical for the formation of new memories. The hippocampus is part of the limbic system and plays a major role in spatial navigation.",
+                functions: [
+                    "New memory formation (consolidation)",
+                    "Short-term to long-term memory transfer",
+                    "Spatial navigation & mental mapping",
+                    "Contextual memory encoding",
+                    "Episodic memory (personal events)",
+                    "Declarative memory (facts & knowledge)",
+                    "Emotional memory processing",
+                    "Learning & neuroplasticity",
+                    "Spatial working memory",
+                    "Memory indexing & retrieval cues"
+                ]
+            },
+            amygdala: {
+                name: "Amygdala",
+                type: "Limbic System",
+                color: "#f43f5e",
+                description: "An almond-shaped cluster of nuclei located deep within the temporal lobes. The amygdala is the brain's emotional center, particularly involved in processing fear, threat detection, and emotional memory. It plays a crucial role in the fight-or-flight response.",
+                functions: [
+                    "Fear processing & fear conditioning",
+                    "Emotional memory formation",
+                    "Threat detection & response",
+                    "Aggression & defensive behavior",
+                    "
+"Emotional learning & associations",
+                    "Autonomic responses to emotions",
+                    "Social behavior interpretation",
+                    "Reward & pleasure processing",
+                    "Anxiety & stress responses",
+                    "Emotional decision making"
+                ]
+            },
+            corpus_callosum: {
+                name: "Corpus Callosum",
+                type: "White Matter Tract",
+                color: "#e2e8f0",
+                description: "The largest white matter structure in the brain, consisting of approximately 200 million nerve fibers that connect the left and right cerebral hemispheres. It enables communication between the two hemispheres and is essential for coordinated bilateral brain function.",
+                functions: [
+                    "Inter-hemispheric communication",
+                    "Bilateral motor coordination",
+                    "Sensory information sharing",
+                    "Unified conscious experience",
+                    "Language lateralization support",
+                    "Bilateral visual field integration",
+                    "Coordinated bimanual tasks",
+                    "Cognitive task sharing between hemispheres",
+                    "Emotional information transfer",
+                    "Sleep spindle propagation"
+                ]
+            },
+            pituitary_gland: {
+                name: "Pituitary Gland",
+                type: "Endocrine Gland",
+                color: "#c084fc",
+                description: "Known as the 'master gland,' the pituitary is a pea-sized gland located at the base of the brain in the sella turcica of the sphenoid bone. Connected to the hypothalamus by the pituitary stalk, it controls most other endocrine glands in the body.",
+                functions: [
+                    "Growth hormone (GH) secretion",
+                    "Thyroid-stimulating hormone (TSH)",
+                    "Adrenocorticotropic hormone (ACTH)",
+                    "Follicle-stimulating hormone (FSH)",
+                    "Luteinizing hormone (LH)",
+                    "Prolactin production (milk production)",
+                    "Antidiuretic hormone (ADH) storage",
+                    "Oxytocin release",
+                    "Stress response coordination",
+                    "Reproductive function regulation"
+                ]
+            },
+            basal_ganglia: {
+                name: "Basal Ganglia",
+                type: "Subcortical Nuclei",
+                color: "#4ade80",
+                description: "A group of subcortical nuclei located deep within the cerebral hemispheres, including the caudate nucleus, putamen, globus pallidus, substantia nigra, and subthalamic nucleus. They are critical for voluntary motor control, procedural learning, and habit formation.",
+                functions: [                    "Voluntary motor control initiation",
+                    "Movement selection & sequencing",
+                    "Procedural learning & habits",
+                    "Action-outcome learning",
+                    "Reward-based decision making",
+                    "Eye movement control",
+                    "Cognitive function modulation",
+                    "Emotional processing support",
+                    "Inhibition of unwanted movements",
+                    "Dopamine-mediated reward signaling"
+                ]
+            },
+            ventricles: {
+                name: "Ventricular System",
+                type: "CSF-Containing Cavities",
+                color: "#38bdf8",
+                description: "A system of four interconnected cavities (ventricles) within the brain that produce and circulate cerebrospinal fluid (CSF). The lateral ventricles (two), third ventricle, and fourth ventricle work together to cushion the brain, remove waste, and maintain chemical stability.",
+                functions: [
+                    "Cerebrospinal fluid (CSF) production",
+                    "Brain cushioning & protection",
+                    "Waste removal from CNS",
+                    "Chemical stability maintenance",
+                    "Buoyancy support for brain",
+                    "Nutrient distribution",
+                    "Intracranial pressure regulation",
+                    "Immune defense support",
+                    "Hormone transport pathway",
+                    "Neural stem cell niche"
+                ]
+            },
+            midbrain: {
+                name: "Midbrain (Mesencephalon)",
+                type: "Brain Stem Region",
+                color: "#f97316",
+                description: "The uppermost part of the brain stem, connecting the pons and diencephalon to the cerebral hemispheres. It contains important structures for visual and auditory reflexes, motor control, and arousal. The substantia nigra within the midbrain produces dopamine.",
+                functions: [
+                    "Visual reflexes (superior colliculus)",
+                    "Auditory reflexes (inferior colliculus)",
+                    "Dopamine production (substantia nigra)",
+                    "Motor control (red nucleus)",
+                    "Pain modulation",
+                    "Eye movement coordination",
+                    "Sleep & arousal regulation",
+                    "Reward pathway (ventral tegmental area)",
+                    "Temperature regulation",
+                    "Relay of motor/sensory information"
+                ]
+            },
+            pons: {
+                name: "Pons",                type: "Brain Stem Region",
+                color: "#ef4444",
+                description: "Located between the midbrain and medulla oblongata, the pons ('bridge') serves as a critical relay station connecting different parts of the brain. It contains nuclei that are important for sleep, respiration, swallowing, bladder control, and facial movements.",
+                functions: [
+                    "Relay between cerebrum & cerebellum",
+                    "Sleep regulation (REM sleep)",
+                    "Breathing rate modulation",
+                    "Facial sensation & movement",
+                    "Eye movement control",
+                    "Hearing & balance relay",
+                    "Swallowing reflex coordination",
+                    "Bladder control",
+                    "Posture & body movement",
+                    "Facial expression (cranial nerve VII)"
+                ]
+            },
+            medulla: {
+                name: "Medulla Oblongata",
+                type: "Brain Stem Region",
+                color: "#dc2626",
+                description: "The lowest part of the brainstem, connecting to the spinal cord. Despite its small size, it controls several critical autonomic functions essential for life. Damage to the medulla is often fatal due to its role in controlling breathing and heart function.",
+                functions: [
+                    "Heart rate & rhythm control",
+                    "Blood pressure regulation",
+                    "Breathing rhythm generation",
+                    "Vomiting reflex center",
+                    "Swallowing coordination",
+                    "Coughing & sneezing reflexes",
+                    "Hiccup reflex center",
+                    "Relay of nerve signals (motor/sensory)",
+                    "Vasomotor center (blood vessel tone)",
+                    "Salivation & digestion control"
+                ]
+            },
+            insula: {
+                name: "Insular Cortex",
+                type: "Cerebral Cortex (Hidden)",
+                color: "#818cf8",
+                description: "A region of the cerebral cortex folded deep within the lateral sulcus (Sylvian fissure), hidden beneath parts of the frontal, parietal, and temporal lobes. Despite being concealed, it plays vital roles in consciousness, emotion, and bodily self-awareness (interoception).",
+                functions: [
+                    "Interoception (body state awareness)",
+                    "Emotional experience & empathy",
+                    "Taste perception (gustatory cortex)",
+                    "Pain perception & processing",
+                    "Addiction & craving regulation",
+                    "Autonomic function control",
+                    "Social emotions (disgust, compassion)",
+                    "Risk assessment & decision making",
+                    "Time perception",
+                    "Vestibular processing (balance)"                ]
+            },
+            cingulate_cortex: {
+                name: "Cingulate Cortex",
+                type: "Limbic Lobe",
+                color: "#14b8a6",
+                description: "A collar-shaped region located on the medial surface of each hemisphere, forming part of the limbic lobe. It consists of anterior and posterior regions with distinct functions, bridging emotional and cognitive processing. It plays a key role in error detection and emotional regulation.",
+                functions: [
+                    "Error detection & conflict monitoring",
+                    "Emotional regulation & processing",
+                    "Attention allocation",
+                    "Motivation & goal-directed behavior",
+                    "Pain processing (affective component)",
+                    "Impulse control",
+                    "Maternal behavior & attachment",
+                    "Expectation processing",
+                    "Decision making under uncertainty",
+                    "Autonomic function modulation"
+                ]
+            }
+        };
+
+        // Scene setup
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x080810);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 3, 7);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 3;
+        controls.maxDistance = 18;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.4;
+        controls.target.set(0, 0, 0);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.6);        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffeedd, 1.0);
+        mainLight.position.set(5, 8, 5);
+        mainLight.castShadow = true;
+        scene.add(mainLight);
+
+        const fillLight = new THREE.DirectionalLight(0xa78bfa, 0.3);
+        fillLight.position.set(-5, 3, -3);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0x60a5fa, 0.25);
+        rimLight.position.set(0, -3, -5);
+        scene.add(rimLight);
+
+        const pointLight1 = new THREE.PointLight(0xf472b6, 0.4, 12);
+        pointLight1.position.set(3, 2, 3);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0x60a5fa, 0.3, 12);
+        pointLight2.position.set(-3, -1, 3);
+        scene.add(pointLight2);
+
+        // Noise function for wrinkles
+        function createNoise() {
+            const perm = new Uint8Array(512);
+            const p = new Uint8Array(256);
+            for (let i = 0; i < 256; i++) p[i] = i;
+            for (let i = 255; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [p[i], p[j]] = [p[j], p[i]];
+            }
+            for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+            function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+            function lerp(a, b, t) { return a + t * (b - a); }
+            function grad(hash, x, y, z) {
+                const h = hash & 15;
+                const u = h < 8 ? x : y;
+                const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+                return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+            }
+            return function noise3D(x, y, z) {
+                const X = Math.floor(x) & 255;
+                const Y = Math.floor(y) & 255;
+                const Z = Math.floor(z) & 255;
+                x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+                const u = fade(x), v = fade(y), w = fade(z);
+                const A = perm[X] + Y, AA = perm[A] + Z, AB = perm[A + 1] + Z;
+                const B = perm[X + 1] + Y, BA = perm[B] + Z, BB = perm[B + 1] + Z;
+                return lerp(                    lerp(lerp(grad(perm[AA], x, y, z), grad(perm[BA], x-1, y, z), u),
+                         lerp(grad(perm[AB], x, y-1, z), grad(perm[BB], x-1, y-1, z), u), v),
+                    lerp(lerp(grad(perm[AA+1], x, y, z-1), grad(perm[BA+1], x-1, y, z-1), u),
+                         lerp(grad(perm[AB+1], x, y-1, z-1), grad(perm[BB+1], x-1, y-1, z-1), u), v), w);
+            };
+        }
+        const noise = createNoise();
+        function fbm(x, y, z, octaves) {
+            let value = 0, amp = 1, freq = 1, maxVal = 0;
+            for (let i = 0; i < octaves; i++) {
+                value += amp * noise(x * freq, y * freq, z * freq);
+                maxVal += amp;
+                amp *= 0.5;
+                freq *= 2.0;
+            }
+            return value / maxVal;
+        }
+
+        // Brain group
+        const brainGroup = new THREE.Group();
+        scene.add(brainGroup);
+
+        // Clickable meshes array
+        const clickableMeshes = [];
+        const meshToRegion = new Map();
+
+        function createMaterial(color, opts = {}) {
+            return new THREE.MeshPhysicalMaterial({
+                color: new THREE.Color(color),
+                roughness: opts.roughness || 0.5,
+                metalness: opts.metalness || 0.05,
+                clearcoat: opts.clearcoat || 0.2,
+                clearcoatRoughness: 0.4,
+                transparent: opts.transparent || false,
+                opacity: opts.opacity || 1.0,
+                side: opts.side || THREE.FrontSide,
+                depthWrite: opts.depthWrite !== undefined ? opts.depthWrite : true,
+                ...opts
+            });
+        }
+
+        // Create cerebral hemispheres with accurate sulci
+        function createHemisphere(side) {
+            const detail = 90;
+            const geometry = new THREE.SphereGeometry(1, detail, detail);
+            const positions = geometry.attributes.position;
+            const colors = new Float32Array(positions.count * 3);
+
+            const frontalColor = new THREE.Color(0xf472b6);
+            const parietalColor = new THREE.Color(0xa78bfa);            const temporalColor = new THREE.Color(0x60a5fa);
+            const occipitalColor = new THREE.Color(0x34d399);
+
+            for (let i = 0; i < positions.count; i++) {
+                let x = positions.getX(i);
+                let y = positions.getY(i);
+                let z = positions.getZ(i);
+
+                // Scale to brain proportions
+                x *= 1.9 * side;
+                y *= 1.6;
+                z *= 2.5;
+
+                // Longitudinal fissure
+                const fissure = Math.exp(-Math.pow(x / (0.12 * side), 2)) * 0.4;
+                x -= Math.sign(x) * fissure;
+
+                // Central sulcus
+                const centralSulcus = Math.exp(-Math.pow((z - 0.3) / 0.15, 2)) * 0.12;
+                const sulcusY = y > 0 ? 1 : 0;
+                y -= centralSulcus * sulcusY;
+
+                // Lateral sulcus (Sylvian fissure)
+                const lateralSulcus = Math.exp(-Math.pow((y + 0.2) / 0.12, 2)) * 
+                                      Math.exp(-Math.pow((z - 0.5) / 1.2, 2)) * 0.15;
+                if (Math.abs(x) > 0.8) {
+                    y += lateralSulcus * Math.sign(y + 0.2);
+                }
+
+                // Parieto-occipital sulcus
+                const parietoOcc = Math.exp(-Math.pow((z + 1.5) / 0.12, 2)) * 0.1;
+                if (y > 0) y -= parietoOcc;
+
+                // Brain wrinkles (gyri and sulci)
+                const wrinkleScale = 4.0;
+                const wrinkle1 = fbm(x * wrinkleScale, y * wrinkleScale, z * wrinkleScale, 5);
+                const wrinkle2 = fbm(x * wrinkleScale * 2.5 + 50, y * wrinkleScale * 2.5, z * wrinkleScale * 2.5, 4);
+                const wrinkle3 = fbm(x * wrinkleScale * 5 + 100, y * wrinkleScale * 5, z * wrinkleScale * 5, 3);
+
+                const normal = new THREE.Vector3(x, y, z).normalize();
+                const displacement = wrinkle1 * 0.12 + wrinkle2 * 0.05 + wrinkle3 * 0.02;
+
+                x += normal.x * displacement;
+                y += normal.y * displacement;
+                z += normal.z * displacement;
+
+                // Flatten bottom
+                if (y < -1.1) {
+                    y = -1.1 + (y + 1.1) * 0.25;
+                }
+                // Taper front
+                if (z > 1.8) {
+                    const t = (z - 1.8) / 1.0;
+                    x *= 1 - t * 0.3;
+                    y -= t * 0.2;
+                }
+
+                // Taper back
+                if (z < -1.8) {
+                    const t = (-z - 1.8) / 1.0;
+                    x *= 1 - t * 0.4;
+                }
+
+                // Temporal lobe bulge
+                if (y < -0.3 && Math.abs(x) > 1.0) {
+                    const temporalBulge = Math.exp(-Math.pow((y + 0.6) / 0.4, 2)) * 0.15;
+                    x += Math.sign(x) * temporalBulge;
+                }
+
+                positions.setXYZ(i, x, y, z);
+
+                // Color based on region
+                let regionColor;
+                const zNorm = z / 2.8;
+                const yNorm = y / 1.8;
+
+                if (zNorm > 0.25) {
+                    regionColor = frontalColor;
+                } else if (zNorm < -0.45) {
+                    regionColor = occipitalColor;
+                } else if (yNorm < -0.25) {
+                    regionColor = temporalColor;
+                } else {
+                    regionColor = parietalColor;
+                }
+
+                const variation = 0.8 + fbm(x * 4, y * 4, z * 4, 3) * 0.4;
+                colors[i * 3] = regionColor.r * variation;
+                colors[i * 3 + 1] = regionColor.g * variation;
+                colors[i * 3 + 2] = regionColor.b * variation;
+            }
+
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.computeVertexNormals();
+
+            const material = createMaterial(0xffffff, { vertexColors: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;            mesh.userData.side = side;
+
+            return mesh;
+        }
+
+        const leftHemisphere = createHemisphere(1);
+        const rightHemisphere = createHemisphere(-1);
+        brainGroup.add(leftHemisphere);
+        brainGroup.add(rightHemisphere);
+        clickableMeshes.push(leftHemisphere, rightHemisphere);
+        meshToRegion.set(leftHemisphere, 'frontal_lobe');
+        meshToRegion.set(rightHemisphere, 'frontal_lobe');
+
+        // Cerebellum
+        function createCerebellum() {
+            const detail = 70;
+            const geometry = new THREE.SphereGeometry(1, detail, detail);
+            const positions = geometry.attributes.position;
+            const colors = new Float32Array(positions.count * 3);
+            const cerebellumColor = new THREE.Color(0xfbbf24);
+
+            for (let i = 0; i < positions.count; i++) {
+                let x = positions.getX(i);
+                let y = positions.getY(i);
+                let z = positions.getZ(i);
+
+                x *= 1.6;
+                y *= 0.75;
+                z *= 1.1;
+
+                const wrinkle = fbm(x * 10, y * 10, z * 10, 5) * 0.06;
+                const normal = new THREE.Vector3(x, y, z).normalize();
+                x += normal.x * wrinkle;
+                y += normal.y * wrinkle;
+                z += normal.z * wrinkle;
+
+                const vermis = Math.exp(-Math.pow(x / 0.1, 2)) * 0.15;
+                y += vermis;
+
+                y -= 1.6;
+                z -= 2.3;
+
+                positions.setXYZ(i, x, y, z);
+
+                const v = 0.8 + fbm(x * 5, y * 5, z * 5, 3) * 0.4;
+                colors[i * 3] = cerebellumColor.r * v;
+                colors[i * 3 + 1] = cerebellumColor.g * v;
+                colors[i * 3 + 2] = cerebellumColor.b * v;
+            }
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.computeVertexNormals();
+
+            const material = createMaterial(0xffffff, { vertexColors: true });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            return mesh;
+        }
+
+        const cerebellum = createCerebellum();
+        brainGroup.add(cerebellum);
+        clickableMeshes.push(cerebellum);
+        meshToRegion.set(cerebellum, 'cerebellum');
+
+        // Brain Stem
+        function createBrainStem() {
+            const group = new THREE.Group();
+
+            const midbrainGeo = new THREE.SphereGeometry(0.35, 32, 32);
+            const midbrainPos = midbrainGeo.attributes.position;
+            for (let i = 0; i < midbrainPos.count; i++) {
+                let x = midbrainPos.getX(i);
+                let y = midbrainPos.getY(i);
+                let z = midbrainPos.getZ(i);
+                x *= 1.0; y *= 0.8; z *= 1.2;
+                y -= 1.0;
+                z -= 1.5;
+                midbrainPos.setXYZ(i, x, y, z);
+            }
+            midbrainGeo.computeVertexNormals();
+            const midbrainMat = createMaterial(0xf97316);
+            const midbrain = new THREE.Mesh(midbrainGeo, midbrainMat);
+            group.add(midbrain);
+            clickableMeshes.push(midbrain);
+            meshToRegion.set(midbrain, 'midbrain');
+
+            const ponsGeo = new THREE.SphereGeometry(0.4, 32, 32);
+            const ponsPos = ponsGeo.attributes.position;
+            for (let i = 0; i < ponsPos.count; i++) {
+                let x = ponsPos.getX(i);
+                let y = ponsPos.getY(i);
+                let z = ponsPos.getZ(i);
+                x *= 1.1; y *= 0.7; z *= 1.0;
+                y -= 1.7;
+                z -= 1.7;
+                ponsPos.setXYZ(i, x, y, z);
+            }
+            ponsGeo.computeVertexNormals();
+            const ponsMat = createMaterial(0xef4444);
+            const pons = new THREE.Mesh(ponsGeo, ponsMat);            group.add(pons);
+            clickableMeshes.push(pons);
+            meshToRegion.set(pons, 'pons');
+
+            const medullaPath = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0, -2.1, -1.9),
+                new THREE.Vector3(0, -2.5, -2.1),
+                new THREE.Vector3(0, -3.0, -2.3),
+                new THREE.Vector3(0, -3.5, -2.4),
+            ]);
+            const medullaGeo = new THREE.TubeGeometry(medullaPath, 20, 0.22, 16, false);
+            const medullaMat = createMaterial(0xdc2626);
+            const medulla = new THREE.Mesh(medullaGeo, medullaMat);
+            group.add(medulla);
+            clickableMeshes.push(medulla);
+            meshToRegion.set(medulla, 'medulla');
+
+            return group;
+        }
+
+        const brainStem = createBrainStem();
+        brainGroup.add(brainStem);
+
+        // Thalamus
+        function createThalamus() {
+            const geo = new THREE.SphereGeometry(0.5, 32, 32);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = pos.getZ(i);
+                x *= 1.3; y *= 0.8; z *= 1.0;
+                pos.setXYZ(i, x, y, z);
+            }
+            geo.computeVertexNormals();
+            const mat = createMaterial(0xfb923c, { transparent: true, opacity: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(0, 0.1, -0.2);
+            return mesh;
+        }
+
+        const thalamus = createThalamus();
+        brainGroup.add(thalamus);
+        clickableMeshes.push(thalamus);
+        meshToRegion.set(thalamus, 'thalamus');
+
+        // Hypothalamus
+        function createHypothalamus() {
+            const geo = new THREE.SphereGeometry(0.25, 24, 24);
+            const pos = geo.attributes.position;            for (let i = 0; i < pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = pos.getZ(i);
+                x *= 1.2; y *= 0.8; z *= 1.5;
+                pos.setXYZ(i, x, y, z);
+            }
+            geo.computeVertexNormals();
+            const mat = createMaterial(0xe879f9, { transparent: true, opacity: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(0, -0.5, 0.3);
+            return mesh;
+        }
+
+        const hypothalamus = createHypothalamus();
+        brainGroup.add(hypothalamus);
+        clickableMeshes.push(hypothalamus);
+        meshToRegion.set(hypothalamus, 'hypothalamus');
+
+        // Hippocampus
+        function createHippocampus(side) {
+            const path = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(side * 0.8, -0.3, 0.5),
+                new THREE.Vector3(side * 1.0, -0.2, 0.0),
+                new THREE.Vector3(side * 1.1, -0.1, -0.5),
+                new THREE.Vector3(side * 1.0, -0.15, -1.0),
+                new THREE.Vector3(side * 0.8, -0.25, -1.3),
+            ]);
+            const geo = new THREE.TubeGeometry(path, 30, 0.1, 12, false);
+            const mat = createMaterial(0x2dd4bf, { transparent: true, opacity: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            return mesh;
+        }
+
+        const leftHippocampus = createHippocampus(1);
+        const rightHippocampus = createHippocampus(-1);
+        brainGroup.add(leftHippocampus);
+        brainGroup.add(rightHippocampus);
+        clickableMeshes.push(leftHippocampus, rightHippocampus);
+        meshToRegion.set(leftHippocampus, 'hippocampus');
+        meshToRegion.set(rightHippocampus, 'hippocampus');
+
+        // Amygdala
+        function createAmygdala(side) {
+            const geo = new THREE.SphereGeometry(0.18, 20, 20);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = pos.getZ(i);                x *= 1.2; y *= 0.9; z *= 1.1;
+                pos.setXYZ(i, x, y, z);
+            }
+            geo.computeVertexNormals();
+            const mat = createMaterial(0xf43f5e, { transparent: true, opacity: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(side * 1.0, -0.3, 0.6);
+            return mesh;
+        }
+
+        const leftAmygdala = createAmygdala(1);
+        const rightAmygdala = createAmygdala(-1);
+        brainGroup.add(leftAmygdala);
+        brainGroup.add(rightAmygdala);
+        clickableMeshes.push(leftAmygdala, rightAmygdala);
+        meshToRegion.set(leftAmygdala, 'amygdala');
+        meshToRegion.set(rightAmygdala, 'amygdala');
+
+        // Corpus Callosum
+        function createCorpusCallosum() {
+            const path = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0, 0.5, 1.2),
+                new THREE.Vector3(0, 0.6, 0.6),
+                new THREE.Vector3(0, 0.65, 0.0),
+                new THREE.Vector3(0, 0.6, -0.6),
+                new THREE.Vector3(0, 0.4, -1.2),
+            ]);
+            const geo = new THREE.TubeGeometry(path, 30, 0.15, 12, false);
+            const mat = createMaterial(0xe2e8f0, { transparent: true, opacity: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            return mesh;
+        }
+
+        const corpusCallosum = createCorpusCallosum();
+        brainGroup.add(corpusCallosum);
+        clickableMeshes.push(corpusCallosum);
+        meshToRegion.set(corpusCallosum, 'corpus_callosum');
+
+        // Pituitary Gland
+        function createPituitary() {
+            const geo = new THREE.SphereGeometry(0.15, 20, 20);
+            const mat = createMaterial(0xc084fc);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(0, -1.0, 0.5);
+            return mesh;
+        }
+
+        const pituitary = createPituitary();
+        brainGroup.add(pituitary);
+        clickableMeshes.push(pituitary);        meshToRegion.set(pituitary, 'pituitary_gland');
+
+        // Basal Ganglia
+        function createBasalGanglia(side) {
+            const geo = new THREE.SphereGeometry(0.35, 24, 24);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = pos.getZ(i);
+                x *= 0.8; y *= 1.2; z *= 1.0;
+                pos.setXYZ(i, x, y, z);
+            }
+            geo.computeVertexNormals();
+            const mat = createMaterial(0x4ade80, { transparent: true, opacity: 0.7 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(side * 0.8, 0.2, 0.3);
+            return mesh;
+        }
+
+        const leftBasalGanglia = createBasalGanglia(1);
+        const rightBasalGanglia = createBasalGanglia(-1);
+        brainGroup.add(leftBasalGanglia);
+        brainGroup.add(rightBasalGanglia);
+        clickableMeshes.push(leftBasalGanglia, rightBasalGanglia);
+        meshToRegion.set(leftBasalGanglia, 'basal_ganglia');
+        meshToRegion.set(rightBasalGanglia, 'basal_ganglia');
+
+        // Ventricles
+        function createVentricles() {
+            const group = new THREE.Group();
+            const ventricleMat = createMaterial(0x38bdf8, { transparent: true, opacity: 0.6 });
+
+            const lvPath1 = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0.3, 0.4, 0.8),
+                new THREE.Vector3(0.35, 0.45, 0.2),
+                new THREE.Vector3(0.3, 0.4, -0.4),
+                new THREE.Vector3(0.25, 0.3, -0.9),
+            ]);
+            const lv1 = new THREE.Mesh(new THREE.TubeGeometry(lvPath1, 20, 0.08, 8, false), ventricleMat);
+            group.add(lv1);
+
+            const lvPath2 = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-0.3, 0.4, 0.8),
+                new THREE.Vector3(-0.35, 0.45, 0.2),
+                new THREE.Vector3(-0.3, 0.4, -0.4),
+                new THREE.Vector3(-0.25, 0.3, -0.9),
+            ]);
+            const lv2 = new THREE.Mesh(new THREE.TubeGeometry(lvPath2, 20, 0.08, 8, false), ventricleMat);
+            group.add(lv2);
+            const tvPath = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0, 0.2, 0.3),
+                new THREE.Vector3(0, 0.2, -0.2),
+                new THREE.Vector3(0, 0.15, -0.6),
+            ]);
+            const tv = new THREE.Mesh(new THREE.TubeGeometry(tvPath, 15, 0.05, 8, false), ventricleMat);
+            group.add(tv);
+
+            const fvGeo = new THREE.ConeGeometry(0.12, 0.4, 8);
+            const fv = new THREE.Mesh(fvGeo, ventricleMat);
+            fv.position.set(0, -0.5, -1.5);
+            fv.rotation.x = 0.3;
+            group.add(fv);
+
+            return group;
+        }
+
+        const ventricles = createVentricles();
+        brainGroup.add(ventricles);
+        ventricles.children.forEach(child => {
+            clickableMeshes.push(child);
+            meshToRegion.set(child, 'ventricles');
+        });
+
+        // Insula
+        function createInsula(side) {
+            const geo = new THREE.SphereGeometry(0.4, 24, 24);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = pos.getZ(i);
+                x *= 0.8; y *= 1.0; z *= 1.2;
+                pos.setXYZ(i, x, y, z);
+            }
+            geo.computeVertexNormals();
+            const mat = createMaterial(0x818cf8, { transparent: true, opacity: 0.6 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(side * 1.4, 0.0, 0.3);
+            return mesh;
+        }
+
+        const leftInsula = createInsula(1);
+        const rightInsula = createInsula(-1);
+        brainGroup.add(leftInsula);
+        brainGroup.add(rightInsula);
+        clickableMeshes.push(leftInsula, rightInsula);
+        meshToRegion.set(leftInsula, 'insula');
+        meshToRegion.set(rightInsula, 'insula');
+        // Cingulate Cortex
+        function createCingulateCortex() {
+            const path = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0, 0.8, 1.3),
+                new THREE.Vector3(0, 0.9, 0.7),
+                new THREE.Vector3(0, 1.0, 0.0),
+                new THREE.Vector3(0, 0.9, -0.7),
+                new THREE.Vector3(0, 0.7, -1.3),
+            ]);
+            const geo = new THREE.TubeGeometry(path, 30, 0.12, 12, false);
+            const mat = createMaterial(0x14b8a6, { transparent: true, opacity: 0.75 });
+            const mesh = new THREE.Mesh(geo, mat);
+            return mesh;
+        }
+
+        const cingulateCortex = createCingulateCortex();
+        brainGroup.add(cingulateCortex);
+        clickableMeshes.push(cingulateCortex);
+        meshToRegion.set(cingulateCortex, 'cingulate_cortex');
+
+        brainGroup.rotation.x = 0.1;
+
+        // Particles
+        const particleCount = 300;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePos = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount; i++) {
+            particlePos[i * 3] = (Math.random() - 0.5) * 25;
+            particlePos[i * 3 + 1] = (Math.random() - 0.5) * 25;
+            particlePos[i * 3 + 2] = (Math.random() - 0.5) * 25;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+        const particleMat = new THREE.PointsMaterial({
+            color: 0xa78bfa, size: 0.02, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending
+        });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        // State
+        let isExploded = false;
+        let isXray = false;
+        let showLabels = false;
+        let isWireframe = false;
+        let isCrossSection = false;
+        let explodeAmount = 0;
+        let targetExplode = 0;
+        let selectedRegion = null;
+
+        // Build parts list        const partsList = document.getElementById('partsList');
+        Object.entries(brainData).forEach(([key, data]) => {
+            const tag = document.createElement('div');
+            tag.className = 'part-tag';
+            tag.style.background = data.color + '20';
+            tag.style.color = data.color;
+            tag.style.borderColor = data.color + '40';
+            tag.textContent = data.name;
+            tag.addEventListener('click', () => selectRegion(key));
+            partsList.appendChild(tag);
+        });
+
+        function selectRegion(regionKey) {
+            const data = brainData[regionKey];
+            if (!data) return;
+
+            selectedRegion = regionKey;
+
+            document.getElementById('infoTitle').textContent = data.name;
+            document.getElementById('infoType').textContent = data.type;
+            document.getElementById('infoDot').style.background = data.color;
+            document.getElementById('infoDesc').textContent = data.description;
+
+            const funcList = document.getElementById('funcList');
+            funcList.innerHTML = '';
+            data.functions.forEach(fn => {
+                const li = document.createElement('li');
+                li.textContent = fn;
+                funcList.appendChild(li);
+            });
+
+            document.querySelectorAll('.part-tag').forEach((tag, idx) => {
+                const keys = Object.keys(brainData);
+                tag.classList.toggle('active', keys[idx] === regionKey);
+            });
+
+            highlightRegion(regionKey);
+        }
+
+        function highlightRegion(regionKey) {
+            clickableMeshes.forEach(mesh => {
+                const meshRegion = meshToRegion.get(mesh);
+                if (mesh.material) {
+                    if (meshRegion === regionKey) {
+                        mesh.material.emissive = new THREE.Color(brainData[regionKey].color);
+                        mesh.material.emissiveIntensity = 0.3;
+                    } else {
+                        mesh.material.emissive = new THREE.Color(0x000000);
+                        mesh.material.emissiveIntensity = 0;
+                    }                }
+            });
+        }
+
+        // Raycaster for clicking
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const tooltip = document.getElementById('tooltip3d');
+
+        renderer.domElement.addEventListener('click', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickableMeshes, true);
+
+            if (intersects.length > 0) {
+                let target = intersects[0].object;
+                const region = meshToRegion.get(target);
+                if (region) {
+                    selectRegion(region);
+                }
+            }
+        });
+
+        renderer.domElement.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickableMeshes, true);
+
+            if (intersects.length > 0) {
+                let target = intersects[0].object;
+                const region = meshToRegion.get(target);
+                if (region && brainData[region]) {
+                    tooltip.textContent = brainData[region].name;
+                    tooltip.style.left = (event.clientX + 15) + 'px';
+                    tooltip.style.top = (event.clientY - 10) + 'px';
+                    tooltip.classList.add('visible');
+                    renderer.domElement.style.cursor = 'pointer';
+                }
+            } else {
+                tooltip.classList.remove('visible');
+                renderer.domElement.style.cursor = 'grab';
+            }
+        });
+
+        // Controls
+        document.getElementById('btn-rotate').addEventListener('click', function() {            controls.autoRotate = !controls.autoRotate;
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('btn-explode').addEventListener('click', function() {
+            isExploded = !isExploded;
+            targetExplode = isExploded ? 1 : 0;
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('btn-xray').addEventListener('click', function() {
+            isXray = !isXray;
+            this.classList.toggle('active');
+            brainGroup.traverse(child => {
+                if (child.isMesh && child.material) {
+                    child.material.transparent = true;
+                    child.material.opacity = isXray ? 0.25 : (meshToRegion.get(child) && 
+                        ['thalamus','hypothalamus','hippocampus','amygdala','corpus_callosum',
+                         'basal_ganglia','ventricles','insula','cingulate_cortex'].includes(meshToRegion.get(child)) ? 0.8 : 1.0);
+                    child.material.depthWrite = !isXray;
+                    child.material.needsUpdate = true;
+                }
+            });
+        });
+
+        document.getElementById('btn-labels').addEventListener('click', function() {
+            showLabels = !showLabels;
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('btn-wireframe').addEventListener('click', function() {
+            isWireframe = !isWireframe;
+            this.classList.toggle('active');
+            brainGroup.traverse(child => {
+                if (child.isMesh && child.material) {
+                    child.material.wireframe = isWireframe;
+                }
+            });
+        });
+
+        document.getElementById('btn-section').addEventListener('click', function() {
+            isCrossSection = !isCrossSection;
+            this.classList.toggle('active');
+            if (isCrossSection) {
+                renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)];
+                renderer.localClippingEnabled = true;
+            } else {
+                renderer.clippingPlanes = [];
+            }
+        });
+        // View modes
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const view = this.dataset.view;
+                const duration = 1000;
+                const start = Date.now();
+                const startPos = camera.position.clone();
+                let targetPos;
+
+                switch(view) {
+                    case 'lateral': targetPos = new THREE.Vector3(6, 2, 4); break;
+                    case 'medial': targetPos = new THREE.Vector3(-6, 2, 4); break;
+                    case 'superior': targetPos = new THREE.Vector3(0, 9, 0.1); break;
+                    case 'inferior': targetPos = new THREE.Vector3(0, -8, 0.1); break;
+                    case 'posterior': targetPos = new THREE.Vector3(0, 1, -8); break;
+                }
+
+                function animateView() {
+                    const elapsed = Date.now() - start;
+                    const t = Math.min(elapsed / duration, 1);
+                    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+                    camera.position.lerpVectors(startPos, targetPos, ease);
+                    controls.target.set(0, -0.3, -0.3);
+                    controls.update();
+                    if (t < 1) requestAnimationFrame(animateView);
+                }
+                animateView();
+            });
+        });
+
+        // Animation
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            const breathe = 1 + Math.sin(time * 0.7) * 0.005;
+            brainGroup.scale.set(breathe, breathe, breathe);
+
+            explodeAmount += (targetExplode - explodeAmount) * 0.04;
+            leftHemisphere.position.x = explodeAmount * 1.8;
+            rightHemisphere.position.x = -explodeAmount * 1.8;
+            cerebellum.position.y = -explodeAmount * 1.2;
+            cerebellum.position.z = -explodeAmount * 0.5;
+            thalamus.position.y = 0.1 + explodeAmount * 1.5;
+            hypothalamus.position.y = -0.5 - explodeAmount * 1.0;            leftHippocampus.position.y = explodeAmount * 1.0;
+            rightHippocampus.position.y = explodeAmount * 1.0;
+            leftAmygdala.position.y = -0.3 + explodeAmount * 1.2;
+            rightAmygdala.position.y = -0.3 + explodeAmount * 1.2;
+            corpusCallosum.position.y = explodeAmount * 2.0;
+            pituitary.position.y = -1.0 - explodeAmount * 1.5;
+            leftBasalGanglia.position.x = 0.8 + explodeAmount * 1.0;
+            rightBasalGanglia.position.x = -0.8 - explodeAmount * 1.0;
+            leftInsula.position.x = 1.4 + explodeAmount * 1.5;
+            rightInsula.position.x = -1.4 - explodeAmount * 1.5;
+            cingulateCortex.position.y = explodeAmount * 1.8;
+
+            particles.rotation.y = time * 0.015;
+
+            pointLight1.position.x = Math.sin(time * 0.4) * 4;
+            pointLight1.position.z = Math.cos(time * 0.4) * 4;
+            pointLight2.position.x = Math.sin(time * 0.3 + 2) * 4;
+            pointLight2.position.z = Math.cos(time * 0.3 + 2) * 4;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        selectRegion('frontal_lobe');
+        animate();
+    })();
+    </script>
+</body>
+</html>
